@@ -1,0 +1,2 @@
+# Required for Python touchscreen right click
+evdev>=0.4.1
