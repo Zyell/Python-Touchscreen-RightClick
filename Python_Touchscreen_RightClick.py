@@ -30,6 +30,7 @@ class TrackedEvent(object):
         self.discard = 0
         self.moved = 0
         self.track_start = None
+        self.click_delay = 1.7
 
     def add_finger(self, slot):
         """  Add a detected finger. """
@@ -79,7 +80,7 @@ class TrackedEvent(object):
         """ Internal method for determining long press time right clicking. """
         if self.track_start is not None:
             elapsed = datetime.datetime.now() - self.track_start
-            if elapsed.total_seconds() > 1.7:
+            if elapsed.total_seconds() > self.click_delay:
                 self._initiate_right_click()
 
     def _initiate_right_click(self):
@@ -102,7 +103,7 @@ def initiate_gesture_find():
     """
     for device in list_devices():
         dev = InputDevice(device)
-        if dev.name == 'ELAN Touchscreen':
+        if (dev.name == 'ELAN Touchscreen') or (dev.name == 'Atmel Atmel maXTouch Digitizer'):
             break
     codes = dev.capabilities()
     Abs_events = {}
