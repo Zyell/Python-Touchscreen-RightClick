@@ -67,7 +67,6 @@ class TrackedEvent(object):
         """ tracks position to track movement of fingers """
         if self.position[event_code] is None:
             self.position[event_code] = value
-            print(event_code, value)
         else:
             if abs(self.position[event_code] - value) > self.vars[event_code]:
                 self._moved_event()
