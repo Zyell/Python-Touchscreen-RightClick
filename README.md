@@ -40,7 +40,9 @@ ExecStart=/usr/local/bin/(sheel script from above...)
 
 [Install]
 WantedBy=multi-user.target
+```
 
+You can attempt to still use the rc.local method, mileage may vary...
 
 Edit /etc/rc.local file to include launching this script.
 
