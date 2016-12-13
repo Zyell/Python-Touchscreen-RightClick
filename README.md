@@ -10,6 +10,8 @@ Implemented gestures
 Two gesture options have been implemented for right click:
 
 * 1 finger longpress
+  * Standard operation is to open menu after finger is lifted.
+  * Temporary workaround will bring up right click while still pressing
 * 2 finger tap
 
 Setting up script
@@ -19,6 +21,8 @@ Install requirements (python evdev).  Will work in either Python 2.7 or 3.4+ *te
 This has been tested on Ubuntu 14.04, 15.04, & 16.04 with an ELAN/Atmel touchscreen on Lenovo Yoga 2 pro, and Surface Pro 2.
 
 To modify the delay for your right click, open the script in a text editor and modify the self.click_delay variable, the default is 1.5 seconds.
+
+To use the long press workaround, set that option to True.  To use PyMouse for event input instead of UInput (the default UInput method doesn't work for all hardware/OS setups, and the PyMouse option can result in displaced right clicks in some environments when the window of interest is not the primary focus), set that option to True.  Default is False for both.
 
 In order to launch the script at startup, the rc.local method may or may not work.  Using systemd, you can setup a service.  The service can be setup as follows to call a shell script:
 

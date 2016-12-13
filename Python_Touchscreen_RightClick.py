@@ -5,12 +5,14 @@ a right click option with Touchscreens in the Ubuntu unity environment.
 This is implemented with the evdev Python library on an ELAN touchscreen.
 
 Currently implements 2 types of right click options:
-1 finger long touch: Timeout of 1.7 seconds, movement cancels action
+1 finger long touch: Timeout of 1.5 seconds, movement cancels action
 2 finger tap: movement cancels action
 """
 
 from evdev import InputDevice, ecodes, UInput, list_devices
+from pymouse import PyMouse
 from threading import Timer
+import subprocess
 
 
 class TrackedEvent(object):
@@ -21,10 +23,12 @@ class TrackedEvent(object):
     timing of long presses, and event completion.
     """
 
-    def __init__(self, dev, abilities, var_x, var_y):
+    def __init__(self, dev, abilities, var_x, var_y,
+                 use_pymouse=False, long_press_workaround=False):
         """ Initialize tracking attributes. """
         self.dev = dev
         self.abilities = abilities
+        self.long_press_workaround = long_press_workaround
         self.vars = {'ABS_X': var_x, 'ABS_Y': var_y}
         self.position = {'ABS_X': None, 'ABS_Y': None}
         self.fingers = 0
@@ -33,6 +37,11 @@ class TrackedEvent(object):
         self.moved = 0
         self.track_start = None
         self.click_delay = 1.5
+        self.long_pressed = False
+        if use_pymouse:
+            self.mouse = PyMouse()
+        else:
+            self.mouse = None
 
     def add_finger(self):
         """  Add a detected finger. """
@@ -60,10 +69,8 @@ class TrackedEvent(object):
                 self.track_start.join()
             except AttributeError:  # capture Nonetype track_start
                 pass
-            try:
-                self.dev.ungrab()
-            except OSError:  # capture case where grab was never initiated
-                pass
+            if self.long_pressed and not self.long_press_workaround:
+                self._initiate_right_click()
 
         if self.fingers == 0:
             self.discard = 1
@@ -83,11 +90,15 @@ class TrackedEvent(object):
         """ start timing for long press """
         self.track_start = Timer(self.click_delay, self._long_press)
         self.track_start.start()
+        print('tracking started!!!')
 
     def _long_press(self):
         if self.fingers == 1 and self.moved == 0:
-            self._initiate_right_click()
-            self.dev.grab()
+            self.long_pressed = True
+            if self.long_press_workaround:
+                subprocess.call(['xinput', '--disable', 'ELAN Touchscreen'])
+                subprocess.call(['xinput', '--enable', 'ELAN Touchscreen'])
+                self._initiate_right_click()
 
     def _moved_event(self):
         """ movement detected. """
@@ -95,15 +106,19 @@ class TrackedEvent(object):
 
     def _initiate_right_click(self):
         """ Internal method for initiating a right click at touch point. """
-        with UInput(self.abilities) as ui:
-            ui.write(ecodes.EV_ABS, ecodes.ABS_X, 0)
-            ui.write(ecodes.EV_ABS, ecodes.ABS_Y, 0)
-            ui.write(ecodes.EV_KEY, ecodes.BTN_RIGHT, 1)
-            ui.write(ecodes.EV_KEY, ecodes.BTN_RIGHT, 0)
-            ui.syn()
+        if self.mouse is None:
+            with UInput(self.abilities) as ui:
+                ui.write(ecodes.EV_ABS, ecodes.ABS_X, 0)
+                ui.write(ecodes.EV_ABS, ecodes.ABS_Y, 0)
+                ui.write(ecodes.EV_KEY, ecodes.BTN_RIGHT, 1)
+                ui.write(ecodes.EV_KEY, ecodes.BTN_RIGHT, 0)
+                ui.syn()
+        else:
+            x, y = self.mouse.position()
+            self.mouse.click(x, y, 2)
 
 
-def initiate_gesture_find():
+def initiate_gesture_find(use_pymouse=False, long_press_workaround=False):
     """
     This function will scan all input devices until it finds an
     ELAN touchscreen. It will then enter a loop to monitor this device
@@ -116,7 +131,8 @@ def initiate_gesture_find():
             break
     Abs_events = {}
     abilities = {ecodes.EV_ABS: [ecodes.ABS_X, ecodes.ABS_Y],
-                 ecodes.EV_KEY: (ecodes.BTN_LEFT, ecodes.BTN_RIGHT)}
+                 ecodes.EV_KEY: (ecodes.BTN_LEFT, ecodes.BTN_RIGHT,
+                                 ecodes.BTN_TOUCH)}
     # Assuming QHD screen on my Yoga 2 Pro as default for resolution measures
     res_x = 13  # touch unit resolution # units/mm in x direction
     res_y = 13  # touch unit resolution # units/mm in y direction
@@ -125,7 +141,6 @@ def initiate_gesture_find():
     for code in codes:
         if code == 3:
             for type_code in codes[code]:
-
                 human_code = ecodes.ABS[type_code[0]]
                 if human_code == 'ABS_X':
                     vals = type_code[1]
@@ -146,7 +161,8 @@ def initiate_gesture_find():
     for event in dev.read_loop():
         if event.type == ecodes.EV_ABS:
             if MT_event is None:
-                MT_event = TrackedEvent(dev, abilities, var_x, var_y)
+                MT_event = TrackedEvent(dev, abilities, var_x, var_y,
+                                        use_pymouse, long_press_workaround)
             event_code = Abs_events[event.code]
             if event_code == 'ABS_X' or event_code == 'ABS_Y':
                 MT_event.position_event(event_code, event.value)
@@ -160,4 +176,4 @@ def initiate_gesture_find():
 
 
 if __name__ == '__main__':
-    initiate_gesture_find()
+    initiate_gesture_find(False, True)
