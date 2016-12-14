@@ -13,6 +13,7 @@ from evdev import InputDevice, ecodes, UInput, list_devices
 from pymouse import PyMouse
 from threading import Timer
 import subprocess
+import argparse
 
 
 class TrackedEvent(object):
@@ -96,8 +97,8 @@ class TrackedEvent(object):
         if self.fingers == 1 and self.moved == 0:
             self.long_pressed = True
             if self.long_press_workaround:
-                subprocess.call(['xinput', '--disable', 'ELAN Touchscreen'])
-                subprocess.call(['xinput', '--enable', 'ELAN Touchscreen'])
+                subprocess.call(['xinput', '--disable', self.dev.name])
+                subprocess.call(['xinput', '--enable', self.dev.name])
                 self._initiate_right_click()
 
     def _moved_event(self):
@@ -176,4 +177,15 @@ def initiate_gesture_find(use_pymouse=False, long_press_workaround=False):
 
 
 if __name__ == '__main__':
-    initiate_gesture_find(False, True)
+    parser = argparse.ArgumentParser(
+        description='Implements right click options on Linux Systems via Touchscreen')
+    parser.add_argument(
+        "--use_pymouse",
+        help="Uses PyMouse for initiating clicks instead of UInput",
+        action="store_true")
+    parser.add_argument(
+        "--long_press_workaround",
+        help="Uses xinupt to disable/enable touchscreen to raise context menu during press",
+        action="store_true")
+    args = parser.parse_args()
+    initiate_gesture_find(args.use_pymouse, args.long_press_workaround)
